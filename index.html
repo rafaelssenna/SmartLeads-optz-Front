@@ -28,6 +28,14 @@
 
       <div id="loading">Buscando contatos...</div>
 
+      <!-- Contêiner de progresso (barra e texto) -->
+      <div id="progressContainer" style="display: none; margin-top: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <progress id="progressBar" value="0" max="100" style="flex: 1; height: 12px;"></progress>
+          <span id="progressText" style="font-size: 0.9rem;"></span>
+        </div>
+      </div>
+
       <table id="resultsTable" style="display: none;">
         <thead>
           <tr>
