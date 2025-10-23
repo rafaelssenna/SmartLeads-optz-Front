@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gerador de Contatos de Negócios</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Gerador de Contatos de Negócios</h1>
+
+      <form id="searchForm">
+        <label>
+          Nicho
+          <input type="text" id="category" placeholder="Ex. Restaurantes" required />
+        </label>
+        <label>
+          Local
+          <input type="text" id="location" placeholder="Ex. São Paulo" required />
+        </label>
+        <label>
+          Quantidade de contatos
+          <input type="number" id="limit" min="1" max="100" value="10" />
+        </label>
+        <button id="submitBtn" type="submit">Buscar</button>
+      </form>
+
+      <div id="loading">Buscando contatos...</div>
+
+      <table id="resultsTable" style="display: none;">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Telefone</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+
+      <div class="downloads">
+        <a id="downloadLink" href="#" download="contacts.csv" style="display:none;">
+          Baixar CSV (via backend)
+        </a>
+        <a id="downloadLocalLink" href="#" download="contacts.csv" style="display:none;">
+          Baixar CSV (local)
+        </a>
+      </div>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
