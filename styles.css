@@ -97,3 +97,12 @@ th {
   color: #007bff;
   font-weight: bold;
 }
+
+/* Estilos de progresso */
+#progressContainer {
+  margin-top: 0.5rem;
+}
+
+progress {
+  width: 100%;
+}
