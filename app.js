@@ -8,6 +8,9 @@ const resultsTable = document.getElementById('resultsTable');
 const resultsBody = document.getElementById('resultsBody');
 const downloadLink = document.getElementById('downloadLink');           // backend CSV
 const downloadLocalLink = document.getElementById('downloadLocalLink'); // CSV local (fallback)
+const progressContainer = document.getElementById('progressContainer');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
 
 function escapeCsv(value = '') {
   const s = String(value ?? '');
@@ -53,12 +56,14 @@ async function fetchJson(url) {
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-
   // reset UI
   resultsBody.innerHTML = '';
   resultsTable.style.display = 'none';
   downloadLink.style.display = 'none';
   downloadLocalLink.style.display = 'none';
+  progressContainer.style.display = 'none';
+  progressBar.value = 0;
+  progressText.textContent = '';
   loading.style.display = 'block';
   submitBtn.disabled = true;
 
@@ -66,34 +71,75 @@ form.addEventListener('submit', async (e) => {
   const location = document.getElementById('location').value.trim();
   const limit = document.getElementById('limit').value;
 
+  // Utiliza SSE para obter resultados progressivos
   try {
     const params = new URLSearchParams({ category, location, limit });
-    const apiUrl = `${BASE_URL}/api/scrape?${params.toString()}`;
+    const streamUrl = `${BASE_URL}/api/scrape/stream?${params.toString()}`;
+    const entries = [];
+    progressContainer.style.display = 'block';
+    progressBar.value = 0;
+    progressBar.max = 100;
+    progressText.textContent = `0 / ${limit}`;
 
-    const payload = await fetchJson(apiUrl);
-    const entries = Array.isArray(payload?.data) ? payload.data : [];
+    const es = new EventSource(streamUrl);
 
-    renderRows(entries);
+    es.addEventListener('message', (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        // Atualiza progresso e adiciona linha à tabela
+        if (payload.progress) {
+          const found = payload.progress.found;
+          const total = payload.progress.total;
+          const pct = total > 0 ? Math.floor((found / total) * 100) : 0;
+          progressBar.value = pct;
+          progressText.textContent = `${found} / ${total}`;
+        }
+        if (payload.contact) {
+          entries.push(payload.contact);
+          const row = document.createElement('tr');
+          const nameCell = document.createElement('td');
+          nameCell.textContent = payload.contact.name;
+          const phoneCell = document.createElement('td');
+          phoneCell.textContent = payload.contact.phone;
+          row.appendChild(nameCell);
+          row.appendChild(phoneCell);
+          resultsBody.appendChild(row);
+          resultsTable.style.display = '';
+        }
+      } catch (err) {
+        console.error('Erro ao processar mensagem SSE', err);
+      }
+    });
 
-    if (!entries.length) {
-      alert('Nenhum contato encontrado com WhatsApp.');
-      return;
-    }
+    es.addEventListener('done', () => {
+      // Streaming finalizado: permite download e encerra
+      progressBar.value = 100;
+      progressText.textContent = `${entries.length} / ${limit}`;
+      loading.style.display = 'none';
+      submitBtn.disabled = false;
+      // Gera CSV local
+      const csv = buildLocalCsv(entries);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const urlCsv = URL.createObjectURL(blob);
+      downloadLocalLink.href = urlCsv;
+      downloadLocalLink.style.display = 'inline-block';
+      // Link para baixar via backend (CSV com os mesmos parâmetros)
+      downloadLink.href = `${BASE_URL}/api/scrape/csv?${params.toString()}`;
+      downloadLink.style.display = 'inline-block';
+      es.close();
+    });
 
-    // Link para baixar via backend
-    downloadLink.href = `${BASE_URL}/api/scrape/csv?${params.toString()}`;
-    downloadLink.style.display = 'inline-block';
-
-    // Fallback: CSV gerado localmente
-    const csv = buildLocalCsv(entries);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    downloadLocalLink.href = url;
-    downloadLocalLink.style.display = 'inline-block';
+    es.addEventListener('error', (event) => {
+      console.error('Erro no stream SSE', event);
+      try { es.close(); } catch {}
+      loading.style.display = 'none';
+      progressContainer.style.display = 'none';
+      submitBtn.disabled = false;
+      alert('Erro ao buscar dados. Tente novamente.');
+    });
   } catch (err) {
-    alert('Erro: ' + err.message);
-  } finally {
     loading.style.display = 'none';
     submitBtn.disabled = false;
+    alert('Erro: ' + err.message);
   }
 });
